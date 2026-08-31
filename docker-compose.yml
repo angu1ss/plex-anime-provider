@@ -1,0 +1,15 @@
+services:
+  plex-anime-provider:
+    build:
+      context: .
+    image: plex-anime-provider:local
+    container_name: plex-anime-provider
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:26463:26463"
+    healthcheck:
+      test: ["CMD", "/plex-anime-provider", "--healthcheck"]
+      interval: 30s
+      timeout: 5s
+      start_period: 5s
+      retries: 3

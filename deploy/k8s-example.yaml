@@ -1,0 +1,73 @@
+# Example Kubernetes manifests for plex-anime-provider.
+#
+# Notes:
+# - The image is published to ghcr.io/angu1ss/plex-anime-provider starting
+#   from the packaging stage; until then build and push your own.
+# - The provider API has NO authentication. Keep the Service internal
+#   (ClusterIP) and make sure only your Plex Media Server can reach it.
+# - startupProbe covers slow first starts (future stages load the AniDB
+#   titles dump on boot); liveness stays cheap and unconditional.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: plex-anime-provider
+  labels:
+    app.kubernetes.io/name: plex-anime-provider
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: plex-anime-provider
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: plex-anime-provider
+    spec:
+      containers:
+        - name: plex-anime-provider
+          image: ghcr.io/angu1ss/plex-anime-provider:latest
+          ports:
+            - name: http
+              containerPort: 26463
+          startupProbe:
+            httpGet:
+              path: /readyz
+              port: http
+            periodSeconds: 2
+            failureThreshold: 30
+          livenessProbe:
+            httpGet:
+              path: /livez
+              port: http
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: http
+            periodSeconds: 5
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              memory: 256Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: plex-anime-provider
+  labels:
+    app.kubernetes.io/name: plex-anime-provider
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: plex-anime-provider
+  ports:
+    - name: http
+      port: 26463
+      targetPort: http
